@@ -11,25 +11,26 @@ public class StudyGroupModel {
 
     public String owner = "";
     public String theClass = "";
-    DateFormat dateFormat;
     public String location = "";
     public int cap = 0;
     public String description = "";
-    int members;
+    public int members = 0;
+    public String time = "";
 
-    StudyGroupModel(String name) {
-        owner = "you";
-        theClass = name;
-        dateFormat = new SimpleDateFormat("hh:mm a");
-        location = "Here";
-        cap = 6;
+    StudyGroupModel(String inputOwner, String inputClass, String inputLocation, int inputCapacity,
+                    String inputDescription, String inputTime) {
+        owner = inputOwner;
+        theClass = inputClass;
+        location = inputLocation;
+        cap = inputCapacity;
         members = 1;
-        description = "let's study " + theClass + "!";
+        description = inputDescription;
+        time = inputTime;
     }
 
     public String toString() {
-        String toReturn = theClass + "\n" + "Started: "+ dateFormat.format(new Date()).toString()
-                + "\nLocation: " + location + "\nCapacity: " + members +"/" + cap;
+        String toReturn = theClass + "<br>" + "Started: "+ time
+                + "<br>Location: " + location + "<br>Capacity: " + members +"/" + cap;
         return toReturn;
     }
 

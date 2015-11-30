@@ -4,6 +4,8 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
@@ -32,6 +34,17 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.gson.JsonObject;
+import com.koushikdutta.async.future.FutureCallback;
+import com.koushikdutta.ion.Ion;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,7 +54,8 @@ import static android.Manifest.permission.READ_CONTACTS;
  * A login screen that offers login via email/password.
  */
 public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<Cursor> {
-
+    public final static String USERNAME = "username";
+    public final static String PASSWORD = "password";
     /**
      * Id to identity READ_CONTACTS permission request.
      */
@@ -51,11 +65,12 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
      * A dummy authentication store containing known user names and passwords.
      * TODO: remove after connecting to a real authentication system.
      */
-    private static final ArrayList<String> DUMMY_CREDENTIALS = new ArrayList<String>(){{
+    public static final ArrayList<String> DUMMY_CREDENTIALS = new ArrayList<String>(){{
             add("foo@example.com:hello");
             add("bar@example.com:world");
             add("sqamara@ucsd.edu:12345");
     }};
+    public static int userIndex = -1;
     /**
      * Keep track of the login task to ensure we can cancel it if requested.
      */
@@ -67,6 +82,8 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
     private View mProgressView;
     private View mLoginFormView;
 
+    private Context context;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -74,6 +91,8 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         // Set up the login form.
         mEmailView = (AutoCompleteTextView) findViewById(R.id.email);
         populateAutoComplete();
+
+        context = this;
 
         mPasswordView = (EditText) findViewById(R.id.password);
         mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
@@ -91,7 +110,8 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         mEmailSignInButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
-                attemptLogin();
+                if (fetchLoginData())
+                    attemptLogin();
             }
 
 
@@ -101,7 +121,8 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         mEmailRegisterButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
-                attemptRegister();
+                if (fetchLoginData())
+                    attemptRegister();
             }
 
 
@@ -109,6 +130,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
+
     }
 
     private void populateAutoComplete() {
@@ -378,19 +400,22 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             } catch (InterruptedException e) {
                 return false;
             }
-
+            int index = 0;
             for (String credential : DUMMY_CREDENTIALS) {
                 String[] pieces = credential.split(":");
                 if (pieces[0].equals(mEmail)) {
                     // Account exists, return true if the password matches.
-                    if(pieces[1].equals(mPassword))
+                    if(pieces[1].equals(mPassword)) {
+                        userIndex = index;
                         return true;
+                    }
                     else {
                         //noinspection ResourceType
                         mPasswordView.setError(getString(R.string.error_incorrect_password));
                         return false;
                     }
                 }
+                ++index;
             }
             //noinspection ResourceType
             mEmailView.setError(getString(R.string.error_account_DNE));
@@ -406,7 +431,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
             if (success) {
                 goToHome();
-                finish();
+                //finish();
             } else {
                 mPasswordView.requestFocus();
                 mEmailView.requestFocus();
@@ -441,6 +466,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             }
 
             for (String credential : DUMMY_CREDENTIALS) {
+                System.out.println(credential);
                 String[] pieces = credential.split(":");
                 if (pieces[0].equals(mEmail)) {
 
@@ -452,6 +478,14 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             }
 
             DUMMY_CREDENTIALS.add(mEmail + ":" + mPassword);
+            userIndex = DUMMY_CREDENTIALS.size()-1;
+
+            Ion.with(context)
+                    .load("http://198.199.98.53/scripts/post_user_data.php")
+                    .setBodyParameter(USERNAME, mEmail)
+                    .setBodyParameter(PASSWORD, mPassword)
+                    .asString();
+
             return true;
         }
 
@@ -481,5 +515,87 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         Intent intent = new Intent(this, HomePage.class);
         startActivity(intent);
     }
+
+    public class SingleUserData{
+
+        public SingleUserData(JSONObject json_user){
+            try {
+                username = json_user.get(USERNAME).toString();
+                password = json_user.get(PASSWORD).toString();
+            } catch(JSONException e){
+                e.printStackTrace();
+            }
+        }
+
+        String username;
+        String password;
+    }
+
+    public List<SingleUserData> getDataForListView(JsonObject json_array){
+        List<SingleUserData> list_users = new ArrayList<SingleUserData>();
+        String json_str =  json_array.getAsJsonArray("users").toString();
+
+        try {
+            // Turning our JsonObject to a JSONArray
+            JSONArray jsonArray = new JSONArray(json_str);
+
+            // Parsing the JSONArray
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject obj1 = jsonArray.getJSONObject(i);
+
+                //Instantiate event object
+                SingleUserData new_user = new SingleUserData(obj1);
+
+                list_users.add(new_user);
+            }
+
+        } catch (JSONException je) {
+            StringWriter writer = new StringWriter();
+            PrintWriter printWriter = new PrintWriter(writer);
+            je.printStackTrace(printWriter);
+            printWriter.flush();
+            //debugMessage(writer.toString());
+        }
+
+        return list_users;
+    }
+
+    public boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager
+                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+    }
+
+    public boolean fetchLoginData() {
+        if (isNetworkAvailable()) {
+            Ion.with(this)
+                    .load("http://198.199.98.53/scripts/get_user_data.php")
+                    .asJsonObject()
+                    .setCallback(new FutureCallback<JsonObject>() {
+                        // PERFORM MAIN OPERATIONS HERE
+                        @Override
+                        public void onCompleted(Exception e, JsonObject result) {
+                            //Create a List of events
+                            List<SingleUserData> list_users = getDataForListView(result);
+                            DUMMY_CREDENTIALS.clear();
+
+                            for (int i = list_users.size() - 1; i >= 0; --i) {
+                                SingleUserData data = list_users.get(i);
+
+                                DUMMY_CREDENTIALS.add(data.username + ":" + data.password);
+                            }
+                        }
+                    });
+            return true;
+        }
+        else {
+            Toast.makeText(getApplicationContext(), "Internet Connection Required", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+
+    }
+
+
 }
 

@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
     <uses-permission android:name="android.permission.READ_PROFILE" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
 
     <application
         android:allowBackup="true"
@@ -30,6 +33,21 @@
         <activity
             android:name=".ListGroups"
             android:label="@string/title_activity_list_groups"
+            android:theme="@style/AppTheme.NoActionBar" >
+        </activity>
+        <activity
+            android:name=".EnterGroupInfo"
+            android:label="@string/title_activity_enter_group_info"
+            android:theme="@style/AppTheme.NoActionBar" >
+        </activity>
+        <activity
+            android:name=".displayGroupInfo"
+            android:label="@string/title_activity_display_group_info"
+            android:theme="@style/AppTheme.NoActionBar" >
+        </activity>
+        <activity
+            android:name=".DisplayGroupInfo"
+            android:label="@string/title_activity_display_group_info"
             android:theme="@style/AppTheme.NoActionBar" >
         </activity>
     </application>
